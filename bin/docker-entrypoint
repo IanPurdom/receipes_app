@@ -1,8 +1,11 @@
 #!/bin/bash -e
 
-# If running the rails server then create or migrate existing database
+# If running the rails server then create or migrate existing database.
+# This runs in the background so Puma can start and answer health checks
+# (e.g. Render's /up probe) right away, instead of waiting for the full
+# migrate + seed (which can take several minutes on the first deploy).
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
-  ./bin/rails db:prepare
+  ./bin/rails db:prepare &
 fi
 
 exec "${@}"
