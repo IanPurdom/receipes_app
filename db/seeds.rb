@@ -1,3 +1,5 @@
+puts "Cleaning database..."
+
 List.destroy_all
 Receipe.destroy_all
 Ingredient.destroy_all

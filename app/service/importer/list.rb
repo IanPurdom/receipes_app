@@ -13,8 +13,8 @@ module Importer
     
       list = ::List.new(receipe: receipe,
                         ingredient: ingredient,
-                        measure: compute_measure,
-                        direction: scan_direction)
+                        measure: scrap_measure,
+                        direction: scrap_direction)
       
       if list.save 
           
@@ -29,19 +29,19 @@ module Importer
       return false
 
     end
-      
+    
     private 
 
-    def scan_direction
+    def scrap_direction
       ingredient_list.split(',').count == 2 ? ingredient_list.split(',').last : nil 
     end
 
-    def compute_measure
-      scan_ingredient_measure.reduce { |sum, n| sum.to_r + (special_measures[n] || n.to_r) }
+    def scrap_measure
+      scrap_ingredient_measure.reduce(0) { |sum, n| sum.to_r + (special_measures[n] || n.to_r) }
     end
 
-    def scan_ingredient_measure
-      ingredient_list.scan(/\d\b|#{special_characters.map { |c| Regexp.escape(c) }.join('|')}/)
+    def scrap_ingredient_measure
+      ingredient_list.scan(/\d\b|#{special_measures.keys.map { |c| Regexp.escape(c) }.join('|')}/)
     end
 
     def special_measures
@@ -51,10 +51,6 @@ module Importer
         '⅓' => 1/3r,
         '⅔' => 2/3r,
         '⅛' => 1/8r }
-    end
-
-    def special_characters
-      %w(½ ¾ ¼ ⅓)
     end
 
   end
