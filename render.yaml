@@ -1,0 +1,26 @@
+databases:
+  - name: receipes-db
+    plan: free
+    databaseName: receipes_production
+    user: receipes
+
+services:
+  - type: web
+    name: receipes
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /up
+    envVars:
+      - key: RAILS_ENV
+        value: production
+      - key: RAILS_MASTER_KEY
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: receipes-db
+          property: connectionString
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: SOLID_QUEUE_IN_PUMA
+        value: "true"
