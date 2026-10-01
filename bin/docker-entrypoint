@@ -2,16 +2,43 @@
 
 # If running the rails server then create or migrate existing database.
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
-  # Create the database and run migrations synchronously (fast DDL only).
-  # This must happen before Puma starts, since Puma runs the SolidQueue
-  # supervisor in-process (SOLID_QUEUE_IN_PUMA) and would otherwise query
-  # tables (e.g. solid_queue_recurring_tasks) before they exist.
-  ./bin/rails db:create db:migrate
+  # db:prepare creates the database and runs pending migrations for the
+  # primary config. This must complete synchronously, before Puma starts,
+  # since Puma runs the SolidQueue supervisor in-process
+  # (SOLID_QUEUE_IN_PUMA) and would otherwise query tables (e.g.
+  # solid_queue_recurring_tasks) before they exist.
+  #
+  # db:prepare also auto-seeds (db/seeds.rb) the very first time the
+  # database is created, which can take several minutes here (it
+  # downloads and imports hundreds of recipes). To keep that off the
+  # critical path, temporarily hide seeds.rb so db:prepare's own seeding
+  # is a no-op, then seed manually in the background below.
+  if [ -f db/seeds.rb ]; then
+    mv db/seeds.rb db/seeds.rb.deferred
+  fi
 
-  # Seeding downloads and imports hundreds of recipes, which can take
-  # several minutes on the first deploy. Only seed when the database is
-  # actually empty, and run it in the background so Puma can start
-  # immediately and pass health checks (e.g. Render's /up probe).
+  ./bin/rails db:prepare
+
+  if [ -f db/seeds.rb.deferred ]; then
+    mv db/seeds.rb.deferred db/seeds.rb
+  fi
+
+  # All 4 logical databases (primary, cache, queue, cable) share the same
+  # physical Postgres database (Render's free tier only provides one).
+  # Because of that, db:prepare's freshness check -- which looks at
+  # whether the shared `schema_migrations` table exists -- always finds
+  # it already created by the primary migration above, so it silently
+  # skips loading db/cache_schema.rb, db/queue_schema.rb and
+  # db/cable_schema.rb. Load them explicitly, but only the first time
+  # (i.e. when solid_queue's tables aren't there yet), so this is a
+  # no-op on every later restart.
+  if [ "$(./bin/rails runner 'puts ActiveRecord::Base.connection.table_exists?("solid_queue_recurring_tasks")' 2>/dev/null)" = "false" ]; then
+    DISABLE_DATABASE_ENVIRONMENT_CHECK=1 ./bin/rails db:schema:load:cache db:schema:load:queue db:schema:load:cable
+  fi
+
+  # Only seed when the database is actually empty, and run it in the
+  # background so Puma can start immediately and pass health checks
+  # (e.g. Render's /up probe).
   if [ "$(./bin/rails runner 'puts Receipe.count' 2>/dev/null)" = "0" ]; then
     ./bin/rails db:seed &
   fi
