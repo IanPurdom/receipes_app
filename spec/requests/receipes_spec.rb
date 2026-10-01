@@ -5,9 +5,9 @@ RSpec.describe "Receipes", type: :request do
   let!(:garlic) { create(:ingredient, name: "Garlic") }
   let!(:basil) { create(:ingredient, name: "Basil") }
 
-  let!(:receipe_with_both) { create(:receipe, title: "Tomato and garlic sauce", prep_time: 10, cook_time: 20) }
-  let!(:receipe_with_tomato_only) { create(:receipe, title: "Tomato soup", prep_time: 20, cook_time: 40) }
-  let!(:receipe_without_ingredients) { create(:receipe, title: "Plain water", prep_time: 1, cook_time: 0) }
+  let!(:receipe_with_both) { create(:receipe, title: "Tomato and garlic sauce", prep_time: 10, cook_time: 20, ratings: 4.5) }
+  let!(:receipe_with_tomato_only) { create(:receipe, title: "Tomato soup", prep_time: 20, cook_time: 40, ratings: 3.0) }
+  let!(:receipe_without_ingredients) { create(:receipe, title: "Plain water", prep_time: 1, cook_time: 0, ratings: nil) }
 
   before do
     create(:list, receipe: receipe_with_both, ingredient: tomato, measure: 2, direction: "diced")
@@ -21,7 +21,7 @@ RSpec.describe "Receipes", type: :request do
         get "/receipes", as: :json
 
         expect(response).to have_http_status(:unprocessable_content)
-        expect(JSON.parse(response.body)).to eq("error" => "The ingredients[] or max_total_time parameter is required")
+        expect(JSON.parse(response.body)).to eq("error" => "The ingredients[], max_total_time or min_rating parameter is required")
       end
     end
 
@@ -120,6 +120,36 @@ RSpec.describe "Receipes", type: :request do
         expect(titles).to contain_exactly(receipe_with_both.title, receipe_with_tomato_only.title)
       end
     end
+
+    context "with min_rating only (no ingredients)" do
+      it "returns every receipe whose rating is at least the given value" do
+        get "/receipes", params: { min_rating: 4 }, as: :json
+
+        expect(response).to have_http_status(:ok)
+        titles = JSON.parse(response.body).map { |r| r["title"] }
+        expect(titles).to contain_exactly(receipe_with_both.title)
+      end
+    end
+
+    context "with ingredients and min_rating combined" do
+      it "returns only receipes matching both criteria" do
+        get "/receipes", params: { ingredients: %w[Tomato Garlic], min_rating: 4 }, as: :json
+
+        expect(response).to have_http_status(:ok)
+        titles = JSON.parse(response.body).map { |r| r["title"] }
+        expect(titles).to contain_exactly(receipe_with_both.title)
+      end
+    end
+
+    context "with an invalid min_rating (out of the 0-5 range)" do
+      it "ignores it and falls back to the ingredients-only search" do
+        get "/receipes", params: { ingredients: ["Tomato"], match: "any", min_rating: "10" }, as: :json
+
+        expect(response).to have_http_status(:ok)
+        titles = JSON.parse(response.body).map { |r| r["title"] }
+        expect(titles).to contain_exactly(receipe_with_both.title, receipe_with_tomato_only.title)
+      end
+    end
   end
 
   describe "GET /receipes (HTML view)" do
@@ -165,6 +195,21 @@ RSpec.describe "Receipes", type: :request do
 
     it "combines the ingredients and max_total_time filters" do
       get "/receipes", params: { ingredients: "Tomato", match: "any", max_total_time: 30 }
+
+      expect(response.body).to include(receipe_with_both.title)
+      expect(response.body).not_to include(receipe_with_tomato_only.title)
+    end
+
+    it "allows searching by min_rating alone, without any ingredient" do
+      get "/receipes", params: { min_rating: 4 }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(receipe_with_both.title)
+      expect(response.body).not_to include(receipe_with_tomato_only.title)
+    end
+
+    it "combines the ingredients and min_rating filters" do
+      get "/receipes", params: { ingredients: "Tomato, Garlic", min_rating: 4 }
 
       expect(response.body).to include(receipe_with_both.title)
       expect(response.body).not_to include(receipe_with_tomato_only.title)

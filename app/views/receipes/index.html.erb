@@ -30,15 +30,20 @@
       <%= f.number_field :max_total_time, value: @max_total_time, min: 1, placeholder: "e.g.: 30" %>
     </div>
 
+    <div class="field">
+      <%= f.label :min_rating, "Min rating (0-5)" %>
+      <%= f.number_field :min_rating, value: @min_rating, min: 0, max: 5, step: 0.1, placeholder: "e.g.: 4" %>
+    </div>
+
     <%= f.submit "Search" %>
   <% end %>
 
   <section class="results">
-    <% if @ingredient_names.empty? && @max_total_time.nil? %>
-      <p class="hint">Enter one or more ingredients and/or a max total time to start a search.</p>
+    <% if @ingredient_names.empty? && @max_total_time.nil? && @min_rating.nil? %>
+      <p class="hint">Enter one or more ingredients, a max total time and/or a min rating to start a search.</p>
     <% elsif @receipes.empty? %>
       <p class="hint">
-        No receipe matches these criteria<% if @ingredient_names.any? %> (ingredients: <strong><%= @ingredient_names.join(", ") %></strong>)<% end %><% if @max_total_time %> (max total time: <strong><%= @max_total_time %> min</strong>)<% end %>.
+        No receipe matches these criteria<% if @ingredient_names.any? %> (ingredients: <strong><%= @ingredient_names.join(", ") %></strong>)<% end %><% if @max_total_time %> (max total time: <strong><%= @max_total_time %> min</strong>)<% end %><% if @min_rating %> (min rating: <strong><%= @min_rating %>/5</strong>)<% end %>.
       </p>
     <% else %>
       <p class="result-count">

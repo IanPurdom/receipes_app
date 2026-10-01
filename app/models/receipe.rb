@@ -27,4 +27,10 @@ class Receipe < ApplicationRecord
     where("COALESCE(prep_time, 0) + COALESCE(cook_time, 0) <= ?", minutes)
   }
 
+  # Receipes whose rating is at least `rating`. Receipes without a rating
+  # are excluded.
+  scope :with_min_rating, lambda { |rating|
+    where("ratings >= ?", rating)
+  }
+
 end

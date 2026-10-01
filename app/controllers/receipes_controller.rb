@@ -1,8 +1,8 @@
 class ReceipesController < ApplicationController
-  # GET /receipes?ingredients=Tomato,Garlic&match=all&max_total_time=30 (HTML form)
-  # GET /receipes.json?ingredients[]=Tomato&ingredients[]=Garlic&match=all&max_total_time=30 (API)
+  # GET /receipes?ingredients=Tomato,Garlic&match=all&max_total_time=30&min_rating=4 (HTML form)
+  # GET /receipes.json?ingredients[]=Tomato&ingredients[]=Garlic&match=all&max_total_time=30&min_rating=4 (API)
   #
-  # Parameters (at least one of the two must be provided):
+  # Parameters (at least one must be provided):
   #   ingredients (optional)    - ingredient names to search for, either as
   #                                an array (ingredients[]=...) or a
   #                                comma-separated string (ingredients=a,b)
@@ -11,17 +11,19 @@ class ReceipesController < ApplicationController
   #                                containing at least one
   #   max_total_time (optional) - maximum total time (prep + cook), in
   #                                minutes
+  #   min_rating (optional)     - minimum rating (0-5)
   def index
     @match = params[:match] == "any" ? "any" : "all"
     @ingredient_names = parse_ingredient_names(params[:ingredients])
     @max_total_time = parse_max_total_time(params[:max_total_time])
+    @min_rating = parse_min_rating(params[:min_rating])
 
-    if @ingredient_names.empty? && @max_total_time.nil?
+    if @ingredient_names.empty? && @max_total_time.nil? && @min_rating.nil?
       @receipes = []
       respond_to do |format|
         format.html
         format.json do
-          render json: { error: "The ingredients[] or max_total_time parameter is required" },
+          render json: { error: "The ingredients[], max_total_time or min_rating parameter is required" },
                  status: :unprocessable_content
         end
       end
@@ -36,6 +38,7 @@ class ReceipesController < ApplicationController
       end
 
     relation = relation.with_max_total_time(@max_total_time) if @max_total_time
+    relation = relation.with_min_rating(@min_rating) if @min_rating
 
     @receipes = relation.preload(lists: :ingredient).to_a
 
@@ -70,6 +73,16 @@ class ReceipesController < ApplicationController
 
     minutes = raw.to_i
     minutes.positive? ? minutes : nil
+  end
+
+  # Converts the parameter to a float within 0..5, or nil if missing/invalid.
+  def parse_min_rating(raw)
+    return nil if raw.blank?
+
+    rating = raw.to_f
+    return nil if rating <= 0 || rating > 5
+
+    rating
   end
 end
 

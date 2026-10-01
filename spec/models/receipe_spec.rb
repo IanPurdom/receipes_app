@@ -134,4 +134,28 @@ RSpec.describe Receipe, type: :model do
       expect(result.to_a).to include(receipe_without_times)
     end
   end
+
+  describe ".with_min_rating" do
+    let!(:top_rated_receipe) { create(:receipe, title: "Best dish", ratings: 4.8) }
+    let!(:average_receipe) { create(:receipe, title: "Average dish", ratings: 3.0) }
+    let!(:unrated_receipe) { create(:receipe, title: "Unrated dish", ratings: nil) }
+
+    it "returns receipes whose rating is at least the given value" do
+      result = Receipe.with_min_rating(4)
+
+      expect(result.to_a).to contain_exactly(top_rated_receipe)
+    end
+
+    it "includes receipes whose rating exactly matches the given value" do
+      result = Receipe.with_min_rating(3.0)
+
+      expect(result.to_a).to include(average_receipe)
+    end
+
+    it "excludes receipes without a rating" do
+      result = Receipe.with_min_rating(0)
+
+      expect(result.to_a).not_to include(unrated_receipe)
+    end
+  end
 end
