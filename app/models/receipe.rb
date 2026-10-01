@@ -4,4 +4,27 @@ class Receipe < ApplicationRecord
   has_many :ingredients, through: :lists
   validates :title, presence: true
 
+  # Receipes containing at least one of the given ingredients (by name,
+  # case-insensitive).
+  scope :with_any_ingredients, lambda { |names|
+    names = Array(names).map { |name| name.to_s.downcase }.uniq
+    joins(:ingredients).where("LOWER(ingredients.name) IN (?)", names).distinct
+  }
+
+  # Receipes containing all of the given ingredients (by name,
+  # case-insensitive).
+  scope :with_all_ingredients, lambda { |names|
+    names = Array(names).map { |name| name.to_s.downcase }.uniq
+    joins(:ingredients)
+      .where("LOWER(ingredients.name) IN (?)", names)
+      .group("receipes.id")
+      .having("COUNT(DISTINCT LOWER(ingredients.name)) = ?", names.size)
+  }
+
+  # Receipes whose total time (prep + cook) does not exceed `minutes`.
+  # Missing times (NULL) are treated as 0.
+  scope :with_max_total_time, lambda { |minutes|
+    where("COALESCE(prep_time, 0) + COALESCE(cook_time, 0) <= ?", minutes)
+  }
+
 end
