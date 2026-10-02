@@ -1,6 +1,23 @@
 class ReceipesController < ApplicationController
   PER_PAGE_OPTIONS = [10, 20, 50, 100].freeze
   DEFAULT_PER_PAGE = 20
+  MIN_RATING_OPTIONS = [4.5, 4, 3, 2, 1].freeze
+  MAX_TOTAL_TIME_OPTIONS = [5, 10, 15, 30, 45, 60, 90, 120].freeze
+  # NULL only when both times are missing, as in the total_time helper.
+  TOTAL_TIME_SQL = "(CASE WHEN receipes.prep_time IS NULL AND receipes.cook_time IS NULL THEN NULL " \
+                   "ELSE COALESCE(receipes.prep_time, 0) + COALESCE(receipes.cook_time, 0) END)".freeze
+  # Missing values are always listed last; id keeps the order stable across pages.
+  SORT_OPTIONS = {
+    "default" => ["Default", "receipes.id"],
+    "rating_desc" => ["Rating (best first)", "receipes.ratings DESC NULLS LAST, receipes.id"],
+    "rating_asc" => ["Rating (lowest first)", "receipes.ratings ASC NULLS LAST, receipes.id"],
+    "prep_time_asc" => ["Prep time (shortest first)", "receipes.prep_time ASC NULLS LAST, receipes.id"],
+    "prep_time_desc" => ["Prep time (longest first)", "receipes.prep_time DESC NULLS LAST, receipes.id"],
+    "cook_time_asc" => ["Cook time (shortest first)", "receipes.cook_time ASC NULLS LAST, receipes.id"],
+    "cook_time_desc" => ["Cook time (longest first)", "receipes.cook_time DESC NULLS LAST, receipes.id"],
+    "total_time_asc" => ["Total time (shortest first)", "#{TOTAL_TIME_SQL} ASC NULLS LAST, receipes.id"],
+    "total_time_desc" => ["Total time (longest first)", "#{TOTAL_TIME_SQL} DESC NULLS LAST, receipes.id"]
+  }.freeze
 
   # GET /receipes?ingredients=Tomato,Garlic&match=all&max_total_time=30&min_rating=4 (HTML form)
   # GET /receipes.json?ingredients[]=Tomato&ingredients[]=Garlic&match=all&max_total_time=30&min_rating=4 (API)
@@ -17,10 +34,14 @@ class ReceipesController < ApplicationController
   #   min_rating (optional)     - minimum rating (0-5)
   #   page (optional)           - page number of the HTML results; the JSON
   #                                API is not paginated
+  #   sort (optional)           - default, rating_desc, rating_asc,
+  #                                prep_time_asc/desc, cook_time_asc/desc or
+  #                                total_time_asc/desc (HTML only)
   #   per_page (optional)       - receipes per HTML page: 10, 20 (default),
   #                                50 or 100
   def index
     @per_page = DEFAULT_PER_PAGE
+    @sort = SORT_OPTIONS.key?(params[:sort]) ? params[:sort] : "default"
     @match = params[:match] == "any" ? "any" : "all"
     @ingredient_names = parse_ingredient_names(params[:ingredients])
     @ingredient_notes = List.most_frequent_notes(@ingredient_names)
@@ -77,7 +98,7 @@ class ReceipesController < ApplicationController
     @per_page = PER_PAGE_OPTIONS.include?(params[:per_page].to_i) ? params[:per_page].to_i : DEFAULT_PER_PAGE
     @total_pages = [(@total_count / @per_page.to_f).ceil, 1].max
     @page = params[:page].to_i.clamp(1, @total_pages)
-    @receipes = matching.order(:id).offset((@page - 1) * @per_page).limit(@per_page)
+    @receipes = matching.order(Arel.sql(SORT_OPTIONS.fetch(@sort).last)).offset((@page - 1) * @per_page).limit(@per_page)
                         .preload(lists: :ingredient).to_a
   end
 

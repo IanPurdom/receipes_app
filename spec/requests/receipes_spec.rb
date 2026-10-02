@@ -256,6 +256,26 @@ RSpec.describe "Receipes", type: :request do
       expect(response.body).not_to include(receipe_with_tomato_only.title)
     end
 
+    it "offers time brackets and selects the current one" do
+      get "/receipes", params: { max_total_time: 30 }
+
+      expect(response.body).to include('<option value="5">Less than 5 min</option>')
+      expect(response.body).to include('<option selected="selected" value="30">Less than 30 min</option>')
+    end
+
+    it "keeps a custom max_total_time from the URL selectable" do
+      get "/receipes", params: { max_total_time: 25 }
+
+      expect(response.body).to include('<option selected="selected" value="25">Less than 25 min</option>')
+    end
+
+    it "offers rating floors and selects the current one" do
+      get "/receipes", params: { min_rating: 4 }
+
+      expect(response.body).to include('<option value="4.5">More than 4.5 rating</option>')
+      expect(response.body).to include('<option selected="selected" value="4">More than 4 rating</option>')
+    end
+
     it "combines the ingredients and max_total_time filters" do
       get "/receipes", params: { ingredients: "Tomato", match: "any", max_total_time: 30 }
 
@@ -325,6 +345,49 @@ RSpec.describe "Receipes", type: :request do
       it "falls back to 20 for an unsupported per_page" do
         get "/receipes", params: { ingredients: ["Paprika"], per_page: 7 }
 
+        expect(response.body.scan('class="receipe-card"').size).to eq(20)
+      end
+
+      it "sorts by rating, best first, and keeps the sort in the links" do
+        create(:list, receipe: create(:receipe, title: "Top rated", ratings: 4.99), ingredient: Ingredient.find_by!(name: "Paprika"))
+        create(:list, receipe: create(:receipe, title: "Unrated", ratings: nil), ingredient: Ingredient.find_by!(name: "Paprika"))
+
+        get "/receipes", params: { ingredients: ["Paprika"], sort: "rating_desc", per_page: 10 }
+
+        expect(response.body.index("Top rated")).to be < response.body.index("Receipe ")
+        expect(response.body).to include("sort=rating_desc")
+
+        get "/receipes", params: { ingredients: ["Paprika"], sort: "rating_desc", per_page: 100 }
+        expect(response.body.index("Unrated")).to be > response.body.rindex("Receipe ")
+      end
+
+      it "sorts by prep time, shortest first" do
+        create(:list, receipe: create(:receipe, title: "Quick one", prep_time: 1), ingredient: Ingredient.find_by!(name: "Paprika"))
+
+        get "/receipes", params: { ingredients: ["Paprika"], sort: "prep_time_asc" }
+
+        expect(response.body.index("Quick one")).to be < response.body.index("Receipe ")
+      end
+
+      it "sorts by cook time and by total time" do
+        paprika = Ingredient.find_by!(name: "Paprika")
+        create(:list, receipe: create(:receipe, title: "Short cook", prep_time: 60, cook_time: 1), ingredient: paprika)
+        create(:list, receipe: create(:receipe, title: "Short total", prep_time: 1, cook_time: 2), ingredient: paprika)
+
+        get "/receipes", params: { ingredients: ["Paprika"], sort: "cook_time_asc", per_page: 100 }
+        expect(response.body.index("Short cook")).to be < response.body.index("Short total")
+
+        get "/receipes", params: { ingredients: ["Paprika"], sort: "total_time_asc", per_page: 100 }
+        expect(response.body.index("Short total")).to be < response.body.index("Short cook")
+
+        get "/receipes", params: { ingredients: ["Paprika"], sort: "total_time_desc", per_page: 100 }
+        expect(response.body.index("Short cook")).to be < response.body.index("Short total")
+      end
+
+      it "ignores an unknown sort" do
+        get "/receipes", params: { ingredients: ["Paprika"], sort: "title; DROP TABLE" }
+
+        expect(response).to have_http_status(:ok)
         expect(response.body.scan('class="receipe-card"').size).to eq(20)
       end
 

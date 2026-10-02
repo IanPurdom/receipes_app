@@ -9,8 +9,9 @@
            ingredient_autocomplete_url_value: ingredient_suggestions_path,
            action: "change->ingredient-autocomplete#submitOnChange"
          } do |f| %>
+    <section class="search-main">
     <div class="field ingredient-autocomplete">
-      <label for="ingredient-search">Ingredients</label>
+      <label for="ingredient-search">What would please you?</label>
       <div class="ingredient-input">
         <%= tag.input type: "text",
               id: "ingredient-search",
@@ -51,34 +52,48 @@
          data-ingredient-autocomplete-target="status"></p>
     </div>
 
-    <fieldset class="field">
-      <legend>Match mode</legend>
+    <fieldset class="field match-mode">
+      <legend class="visually-hidden">Match mode</legend>
 
-      <label class="radio-label">
-        <%= f.radio_button :match, "all", checked: @match == "all" %>
-        Contains <strong>all</strong> the ingredients
-      </label>
+      <div class="segmented">
+        <label class="segment">
+          <%= f.radio_button :match, "all", checked: @match == "all" %>
+          <span>Contains <strong>all</strong> the ingredients</span>
+        </label>
 
-      <label class="radio-label">
-        <%= f.radio_button :match, "any", checked: @match == "any" %>
-        Contains <strong>at least one</strong> of the ingredients
-      </label>
+        <label class="segment">
+          <%= f.radio_button :match, "any", checked: @match == "any" %>
+          <span>Contains <strong>at least one</strong> of the ingredients</span>
+        </label>
+      </div>
     </fieldset>
+    </section>
 
+    <section class="search-options">
     <div class="field">
-      <%= f.label :max_total_time, "Max total time (prep + cook, in minutes)" %>
-      <%= f.number_field :max_total_time, value: @max_total_time, min: 1, placeholder: "e.g.: 30" %>
+      <%= f.label :max_total_time, "How much time you got?" %>
+      <%= f.select :max_total_time,
+            (ReceipesController::MAX_TOTAL_TIME_OPTIONS | [@max_total_time].compact).sort.map { |minutes| ["Less than #{minutes} min", minutes] },
+            { include_blank: "Any", selected: @max_total_time } %>
     </div>
 
     <div class="field">
-      <%= f.label :min_rating, "Min rating (0-5)" %>
-      <%= f.number_field :min_rating, value: @min_rating, min: 0, max: 5, step: 0.1, placeholder: "e.g.: 4" %>
+      <%= f.label :min_rating, "How good you want it?" %>
+      <%= f.select :min_rating,
+            (ReceipesController::MIN_RATING_OPTIONS | [@min_rating&.to_f].compact).map { |rating| rating == rating.to_i ? rating.to_i : rating }.uniq.sort.reverse.map { |rating| ["More than #{rating} rating", rating] },
+            { include_blank: "Any", selected: @min_rating && (@min_rating.to_f == @min_rating.to_i ? @min_rating.to_i : @min_rating.to_f) } %>
+    </div>
+
+    <div class="field">
+      <%= f.label :sort, "Sort by" %>
+      <%= f.select :sort, ReceipesController::SORT_OPTIONS.map { |key, (label, _)| [label, key] }, selected: @sort %>
     </div>
 
     <div class="field">
       <%= f.label :per_page, "Receipes per page" %>
       <%= f.select :per_page, ReceipesController::PER_PAGE_OPTIONS, selected: @per_page %>
     </div>
+    </section>
   <% end %>
 
   <section class="results">
