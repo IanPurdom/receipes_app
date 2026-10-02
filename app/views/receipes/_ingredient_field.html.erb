@@ -1,0 +1,44 @@
+    <div class="field ingredient-autocomplete <%= local_assigns[:extra_class] %>"
+     data-controller="ingredient-autocomplete"
+     data-ingredient-autocomplete-url-value="<%= ingredient_suggestions_path %>"
+     data-ingredient-autocomplete-name-value="<%= name %>">
+  <label for="<%= field_id %>"><%= label %></label>
+  <div class="ingredient-input">
+    <%= tag.input type: "text",
+          id: field_id,
+          placeholder: placeholder,
+          autocomplete: "off",
+          role: "combobox",
+          aria: {
+            autocomplete: "list",
+            controls: "#{field_id}-suggestions",
+            expanded: "false"
+          },
+          data: {
+            ingredient_autocomplete_target: "input",
+            action: "input->ingredient-autocomplete#search keydown->ingredient-autocomplete#navigate"
+          } %>
+    <ul id="<%= field_id %>-suggestions"
+        class="ingredient-suggestions"
+        role="listbox"
+        aria-label="Ingredient suggestions"
+        data-ingredient-autocomplete-target="suggestions"
+        hidden></ul>
+  </div>
+  <ul class="ingredient-tags" aria-label="Selected ingredients" data-ingredient-autocomplete-target="tags">
+    <% names.each do |ingredient_name| %>
+      <li class="tag">
+        <span><%= ingredient_name %></span>
+        <% if (note = notes[ingredient_name.downcase]) %><span class="tag-note">(<%= note %>)</span><% end %>
+        <%= hidden_field_tag name, ingredient_name, id: nil %>
+        <button type="button"
+                class="tag-remove"
+                aria-label="Remove <%= ingredient_name %>"
+                data-action="click->ingredient-autocomplete#removeTag">&times;</button>
+      </li>
+    <% end %>
+  </ul>
+  <p class="visually-hidden"
+     aria-live="polite"
+     data-ingredient-autocomplete-target="status"></p>
+</div>

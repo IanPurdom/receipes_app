@@ -12,6 +12,8 @@ API.
 - **Ingredient autocomplete**: type an ingredient, pick a suggestion and it is
   added as a removable tag below the search bar (Backspace on an empty field
   removes the last tag).
+- **Exclude ingredients you hate**: recipes containing any of them are removed
+  from the results.
 - **Filter by max total time** (prep + cook time combined, in minutes).
 - **Filter by min rating** (0 to 5).
 - All filters can be combined, and each one is optional (at least one must be
@@ -27,6 +29,8 @@ API.
 - **As a user**, I want to choose whether a recipe must contain *all* the
   ingredients I entered or *at least one* of them, so that I can broaden or
   narrow my search.
+- **As a user**, I want to list ingredients I hate or can't eat, so that every
+  recipe containing them is removed from my results.
 - **As a user**, I want to filter recipes by a maximum total time (prep +
   cook time combined), so that I can find recipes that fit the time I have
   available.
@@ -99,6 +103,7 @@ Visit `/receipes` and fill in any combination of:
 
 - **Ingredients**: type and pick suggestions one by one; each becomes a tag
 - **Match mode**: contains *all* the ingredients (default) or *at least one*
+- **Anything you hate**: ingredients to avoid; recipes containing them are hidden
 - **Max total time**: prep + cook time, in minutes
 - **Min rating**: from 0 to 5
 

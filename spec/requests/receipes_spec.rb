@@ -75,7 +75,7 @@ RSpec.describe "Receipes", type: :request do
         get "/receipes", as: :json
 
         expect(response).to have_http_status(:unprocessable_content)
-        expect(JSON.parse(response.body)).to eq("error" => "The ingredients[], max_total_time or min_rating parameter is required")
+        expect(JSON.parse(response.body)).to eq("error" => "The ingredients[], excluded[], max_total_time or min_rating parameter is required")
       end
     end
 
@@ -114,6 +114,31 @@ RSpec.describe "Receipes", type: :request do
         expect(response).to have_http_status(:ok)
         titles = JSON.parse(response.body).map { |r| r["title"] }
         expect(titles).to contain_exactly(receipe_with_both.title)
+      end
+    end
+
+    context "with excluded ingredients" do
+      def titles
+        JSON.parse(response.body).map { |r| r["title"] }
+      end
+
+      it "hides the receipes containing an excluded ingredient" do
+        get "/receipes", params: { ingredients: ["Tomato"], excluded: ["Garlic"] }, as: :json
+
+        expect(titles).to contain_exactly(receipe_with_tomato_only.title)
+      end
+
+      it "works on its own, ignoring the case of the name" do
+        get "/receipes", params: { excluded: ["tomato"] }, as: :json
+
+        expect(response).to have_http_status(:ok)
+        expect(titles).to contain_exactly(receipe_without_ingredients.title)
+      end
+
+      it "hides receipes containing any of several excluded ingredients" do
+        get "/receipes", params: { excluded: %w[Garlic Basil] }, as: :json
+
+        expect(titles).to contain_exactly(receipe_with_tomato_only.title, receipe_without_ingredients.title)
       end
     end
 
@@ -254,6 +279,20 @@ RSpec.describe "Receipes", type: :request do
       expect(response.body).to include(receipe_with_both.title)
       expect(response.body).to include(receipe_without_ingredients.title)
       expect(response.body).not_to include(receipe_with_tomato_only.title)
+    end
+
+    it "renders the excluded ingredients as tags and filters the receipes" do
+      get "/receipes", params: { ingredients: ["Tomato"], excluded: ["Garlic"] }
+
+      expect(response.body).to include('name="excluded[]" value="Garlic"')
+      expect(response.body).to include("Tomato soup")
+      expect(response.body).not_to include("Tomato and garlic sauce")
+    end
+
+    it "mentions the excluded ingredients when nothing matches" do
+      get "/receipes", params: { ingredients: ["Basil"], excluded: ["Garlic"] }
+
+      expect(response.body).to include("without:")
     end
 
     it "offers time brackets and selects the current one" do

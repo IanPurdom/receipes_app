@@ -302,3 +302,12 @@ h1 {
   gap: 1rem;
   margin: 1.5rem 0;
 }
+
+.ingredient-autocomplete.excluded .tag {
+  background: #fbe9e7;
+  border-color: #efc2bc;
+}
+
+.ingredient-autocomplete.excluded .tag-note {
+  color: #a1554c;
+}

@@ -21,6 +21,19 @@ class Receipe < ApplicationRecord
       .having("COUNT(DISTINCT LOWER(ingredients.name)) = ?", names.size)
   }
 
+  # Receipes containing none of the given ingredients (by name,
+  # case-insensitive).
+  scope :without_ingredients, lambda { |names|
+    names = Array(names).map { |name| name.to_s.downcase }.uniq
+    where(<<~SQL.squish, names)
+      NOT EXISTS (
+        SELECT 1 FROM lists
+        INNER JOIN ingredients ON ingredients.id = lists.ingredient_id
+        WHERE lists.receipe_id = receipes.id AND LOWER(ingredients.name) IN (?)
+      )
+    SQL
+  }
+
   # Receipes whose total time (prep + cook) does not exceed `minutes`.
   # Missing times (NULL) are treated as 0.
   scope :with_max_total_time, lambda { |minutes|

@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
   static targets = ["input", "suggestions", "status", "tags"]
-  static values = { url: String }
+  static values = { url: String, name: { type: String, default: "ingredients[]" } }
 
   connect() {
     this.activeIndex = -1
@@ -69,12 +69,8 @@ export default class extends Controller {
     this.submit()
   }
 
-  submitOnChange(event) {
-    if (event.target !== this.inputTarget) this.submit()
-  }
-
   submit() {
-    this.element.requestSubmit()
+    this.element.closest("form").requestSubmit()
   }
 
   async fetchSuggestions(query, requestId) {
@@ -105,7 +101,7 @@ export default class extends Controller {
     this.suggestionsTarget.replaceChildren()
     suggestions.forEach(({ name, note }, index) => {
       const option = document.createElement("li")
-      option.id = `ingredient-suggestion-${this.requestId}-${index}`
+      option.id = `${this.suggestionsTarget.id}-${this.requestId}-${index}`
       option.setAttribute("role", "option")
       option.setAttribute("aria-selected", "false")
       option.dataset.name = name
@@ -142,7 +138,7 @@ export default class extends Controller {
 
     const hidden = document.createElement("input")
     hidden.type = "hidden"
-    hidden.name = "ingredients[]"
+    hidden.name = this.nameValue
     hidden.value = name
 
     const button = document.createElement("button")

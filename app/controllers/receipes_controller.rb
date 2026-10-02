@@ -26,6 +26,8 @@ class ReceipesController < ApplicationController
   #   ingredients (optional)    - ingredient names to search for, either as
   #                                an array (ingredients[]=...) or a
   #                                comma-separated string (ingredients=a,b)
+  #   excluded (optional)       - ingredient names to avoid (excluded[]=...);
+  #                                receipes containing any of them are hidden
   #   match (optional)          - "all" (default) for receipes containing
   #                                every ingredient, "any" for those
   #                                containing at least one
@@ -45,15 +47,17 @@ class ReceipesController < ApplicationController
     @match = params[:match] == "any" ? "any" : "all"
     @ingredient_names = parse_ingredient_names(params[:ingredients])
     @ingredient_notes = List.most_frequent_notes(@ingredient_names)
+    @excluded_names = parse_ingredient_names(params[:excluded])
+    @excluded_notes = List.most_frequent_notes(@excluded_names)
     @max_total_time = parse_max_total_time(params[:max_total_time])
     @min_rating = parse_min_rating(params[:min_rating])
 
-    if @ingredient_names.empty? && @max_total_time.nil? && @min_rating.nil?
+    if @ingredient_names.empty? && @excluded_names.empty? && @max_total_time.nil? && @min_rating.nil?
       @receipes = []
       respond_to do |format|
         format.html
         format.json do
-          render json: { error: "The ingredients[], max_total_time or min_rating parameter is required" },
+          render json: { error: "The ingredients[], excluded[], max_total_time or min_rating parameter is required" },
                  status: :unprocessable_content
         end
       end
@@ -67,6 +71,7 @@ class ReceipesController < ApplicationController
         Receipe.all
       end
 
+    relation = relation.without_ingredients(@excluded_names) if @excluded_names.any?
     relation = relation.with_max_total_time(@max_total_time) if @max_total_time
     relation = relation.with_min_rating(@min_rating) if @min_rating
 

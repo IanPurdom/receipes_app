@@ -4,53 +4,15 @@
   <h1>What would you like to cook today?</h1>
 
   <%= form_with url: receipes_path, method: :get, local: true, class: "search-form",
-         data: {
-           controller: "ingredient-autocomplete",
-           ingredient_autocomplete_url_value: ingredient_suggestions_path,
-           action: "change->ingredient-autocomplete#submitOnChange"
-         } do |f| %>
+         data: { controller: "auto-submit", action: "change->auto-submit#submit" } do |f| %>
     <section class="search-main">
-    <div class="field ingredient-autocomplete">
-      <label for="ingredient-search">What would please you?</label>
-      <div class="ingredient-input">
-        <%= tag.input type: "text",
-              id: "ingredient-search",
-              placeholder: "Type an ingredient, e.g.: Tomato",
-              autocomplete: "off",
-              role: "combobox",
-              aria: {
-                autocomplete: "list",
-                controls: "ingredient-suggestions",
-                expanded: "false"
-              },
-              data: {
-                ingredient_autocomplete_target: "input",
-                action: "input->ingredient-autocomplete#search keydown->ingredient-autocomplete#navigate"
-              } %>
-        <ul id="ingredient-suggestions"
-            class="ingredient-suggestions"
-            role="listbox"
-            aria-label="Ingredient suggestions"
-            data-ingredient-autocomplete-target="suggestions"
-            hidden></ul>
-      </div>
-      <ul class="ingredient-tags" aria-label="Selected ingredients" data-ingredient-autocomplete-target="tags">
-        <% @ingredient_names.each do |name| %>
-          <li class="tag">
-            <span><%= name %></span>
-            <% if (note = @ingredient_notes[name.downcase]) %><span class="tag-note">(<%= note %>)</span><% end %>
-            <%= hidden_field_tag "ingredients[]", name, id: nil %>
-            <button type="button"
-                    class="tag-remove"
-                    aria-label="Remove <%= name %>"
-                    data-action="click->ingredient-autocomplete#removeTag">&times;</button>
-          </li>
-        <% end %>
-      </ul>
-      <p class="visually-hidden"
-         aria-live="polite"
-         data-ingredient-autocomplete-target="status"></p>
-    </div>
+    <%= render "ingredient_field",
+          label: "What would please you?",
+          field_id: "ingredient-search",
+          name: "ingredients[]",
+          placeholder: "Type an ingredient, e.g.: Tomato",
+          names: @ingredient_names,
+          notes: @ingredient_notes %>
 
     <fieldset class="field match-mode">
       <legend class="visually-hidden">Match mode</legend>
@@ -67,6 +29,15 @@
         </label>
       </div>
     </fieldset>
+
+    <%= render "ingredient_field",
+          label: "Anything you hate?",
+          field_id: "excluded-search",
+          name: "excluded[]",
+          placeholder: "Receipes containing it are hidden, e.g.: Cilantro",
+          names: @excluded_names,
+          notes: @excluded_notes,
+          extra_class: "excluded" %>
     </section>
 
     <section class="search-options">
@@ -97,11 +68,11 @@
   <% end %>
 
   <section class="results">
-    <% if @ingredient_names.empty? && @max_total_time.nil? && @min_rating.nil? %>
-      <p class="hint">Enter one or more ingredients, a max total time and/or a min rating to start a search.</p>
+    <% if @ingredient_names.empty? && @excluded_names.empty? && @max_total_time.nil? && @min_rating.nil? %>
+      <p class="hint">Enter one or more ingredients, ingredients to avoid, a max total time and/or a min rating to start a search.</p>
     <% elsif @receipes.empty? %>
       <p class="hint">
-        No receipe matches these criteria<% if @ingredient_names.any? %> (ingredients: <strong><%= @ingredient_names.join(", ") %></strong>)<% end %><% if @max_total_time %> (max total time: <strong><%= @max_total_time %> min</strong>)<% end %><% if @min_rating %> (min rating: <strong><%= @min_rating %>/5</strong>)<% end %>.
+        No receipe matches these criteria<% if @ingredient_names.any? %> (ingredients: <strong><%= @ingredient_names.join(", ") %></strong>)<% end %><% if @excluded_names.any? %> (without: <strong><%= @excluded_names.join(", ") %></strong>)<% end %><% if @max_total_time %> (max total time: <strong><%= @max_total_time %> min</strong>)<% end %><% if @min_rating %> (min rating: <strong><%= @min_rating %>/5</strong>)<% end %>.
       </p>
     <% else %>
       <p class="result-count">
