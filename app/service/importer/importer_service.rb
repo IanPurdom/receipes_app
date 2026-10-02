@@ -26,7 +26,7 @@ module Importer
           
             unless list 
               
-              delete_temp_receipe(receipe, ingredient) 
+              delete_temp_receipe(receipe)
             
             end
           
@@ -40,7 +40,7 @@ module Importer
 
     private 
 
-    def delete_temp_receipe
+    def delete_temp_receipe(receipe)
       receipe.ingredients.destroy_all
       receipe.destroy
 

@@ -51,16 +51,3 @@ module Importer
   end
 
 end
-
-##"⅓ cup all-purpose flour",
-##"1 ½ teaspoons ground cinnamon"
-
-###3 ripe bananas, mashed"
-##6 slices turkey bacon, cut into small pieces
-##"½ cup butter, softened"
-#1 teaspoon ground cinnamon, or to taste"
-#"¼ cup vegetable oil, or as needed"
-#"¼ cup butter, divided"
-#eggs, lightly beaten
-# "( ounce) cans refrigerated biscuit dough, separated and cut into quarters"
-## 2 (16 ounce) cans refrigerated biscuit dough"
