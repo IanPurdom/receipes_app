@@ -240,6 +240,27 @@ RSpec.describe "Receipes", type: :request do
       expect(response.body).to include("Enter one or more ingredients")
     end
 
+    it "suggests only receipes rated 4.5 or more when no criteria is given" do
+      get "/receipes"
+
+      expect(response.body).to include("Tomato and garlic sauce")
+      expect(response.body).not_to include("Tomato soup")
+      expect(response.body).not_to include("Plain water")
+    end
+
+    it "does not show suggestions once a criterion is given" do
+      get "/receipes", params: { ingredients: %w[Tomato], max_total_time: 120 }
+
+      expect(response.body).not_to include("Need inspiration")
+    end
+
+    it "limits suggestions to 6" do
+      create_list(:receipe, 8, ratings: 5)
+      get "/receipes"
+
+      expect(response.body.scan('class="receipe-card"').size).to eq(6)
+    end
+
     it "renders each selected ingredient as a removable tag with a hidden field" do
       get "/receipes", params: { ingredients: %w[Tomato Garlic] }
 

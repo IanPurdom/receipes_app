@@ -70,6 +70,15 @@
   <section class="results">
     <% if @ingredient_names.empty? && @excluded_names.empty? && @max_total_time.nil? && @min_rating.nil? %>
       <p class="hint">Enter one or more ingredients, ingredients to avoid, a max total time and/or a min rating to start a search.</p>
+
+      <% if @suggestions.any? %>
+        <h2 class="suggestions-title">Need inspiration? Top-rated picks</h2>
+        <ul class="receipe-list">
+          <% @suggestions.each do |receipe| %>
+            <%= render "receipe", receipe: receipe %>
+          <% end %>
+        </ul>
+      <% end %>
     <% elsif @receipes.empty? %>
       <p class="hint">
         No receipe matches these criteria<% if @ingredient_names.any? %> (ingredients: <strong><%= @ingredient_names.join(", ") %></strong>)<% end %><% if @excluded_names.any? %> (without: <strong><%= @excluded_names.join(", ") %></strong>)<% end %><% if @max_total_time %> (max total time: <strong><%= @max_total_time %> min</strong>)<% end %><% if @min_rating %> (min rating: <strong><%= @min_rating %>/5</strong>)<% end %>.
@@ -81,37 +90,7 @@
 
       <ul class="receipe-list">
         <% @receipes.each do |receipe| %>
-          <li class="receipe-card">
-            <%= image_tag receipe_image_url(receipe),
-                  alt: receipe.title,
-                  class: "receipe-image",
-                  loading: "lazy",
-                  onerror: "this.onerror=null;this.src='#{image_path(ReceipesHelper::DEFAULT_IMAGE)}'" %>
-
-            <h2><%= receipe.title %></h2>
-
-            <p class="meta">
-              <% if receipe.cuisine.present? %><span><%= receipe.cuisine %></span><% end %>
-              <% if receipe.category.present? %><span><%= receipe.category %></span><% end %>
-              <% if receipe.author.present? %><span>by <%= receipe.author %></span><% end %>
-            </p>
-
-            <p class="meta">
-              <% if receipe.prep_time.present? %><span>Prep: <%= receipe.prep_time %> min</span><% end %>
-              <% if receipe.cook_time.present? %><span>Cook: <%= receipe.cook_time %> min</span><% end %>
-              <% if total_time(receipe) %><span>Total: <%= total_time(receipe) %> min</span><% end %>
-              <% if receipe.ratings.present? %><span>Rating: <%= receipe.ratings %>/5</span><% end %>
-            </p>
-
-            <ul class="ingredients">
-              <% receipe.lists.each do |list| %>
-                <li>
-                  <span class="quantity"><%= format_quantity(list.measure, list.ingredient.measure_type) %></span>
-                  <%= ingredient_display_name(list.measure, list.ingredient.measure_type, list.ingredient.name) %><% if list.direction.present? %>, <%= list.direction.strip %><% end %>
-                </li>
-              <% end %>
-            </ul>
-          </li>
+          <%= render "receipe", receipe: receipe %>
         <% end %>
       </ul>
 

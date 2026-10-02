@@ -1,6 +1,8 @@
 class ReceipesController < ApplicationController
   PER_PAGE_OPTIONS = [10, 20, 50, 100].freeze
   DEFAULT_PER_PAGE = 20
+  SUGGESTION_MIN_RATING = 4.5
+  SUGGESTIONS_COUNT = 6
   MIN_RATING_OPTIONS = [4.5, 4, 3, 2, 1].freeze
   MAX_TOTAL_TIME_OPTIONS = [5, 10, 15, 30, 45, 60, 90, 120].freeze
   # NULL only when both times are missing, as in the total_time helper.
@@ -55,7 +57,7 @@ class ReceipesController < ApplicationController
     if @ingredient_names.empty? && @excluded_names.empty? && @max_total_time.nil? && @min_rating.nil?
       @receipes = []
       respond_to do |format|
-        format.html
+        format.html { @suggestions = random_suggestions }
         format.json do
           render json: { error: "The ingredients[], excluded[], max_total_time or min_rating parameter is required" },
                  status: :unprocessable_content
@@ -95,6 +97,13 @@ class ReceipesController < ApplicationController
   end
 
   private
+
+  # Random top-rated receipes shown when no search criterion is given.
+  def random_suggestions
+    Receipe.with_min_rating(SUGGESTION_MIN_RATING)
+           .reorder(Arel.sql("RANDOM()")).limit(SUGGESTIONS_COUNT)
+           .preload(lists: :ingredient).to_a
+  end
 
   # The scopes use GROUP BY / DISTINCT, so paginate on the matching ids.
   def paginate(relation)

@@ -1,0 +1,31 @@
+  <li class="receipe-card">
+    <%= image_tag receipe_image_url(receipe),
+          alt: receipe.title,
+          class: "receipe-image",
+          loading: "lazy",
+          onerror: "this.onerror=null;this.src='#{image_path(ReceipesHelper::DEFAULT_IMAGE)}'" %>
+
+    <h2><%= receipe.title %></h2>
+
+    <p class="meta">
+      <% if receipe.cuisine.present? %><span><%= receipe.cuisine %></span><% end %>
+      <% if receipe.category.present? %><span><%= receipe.category %></span><% end %>
+      <% if receipe.author.present? %><span>by <%= receipe.author %></span><% end %>
+    </p>
+
+    <p class="meta">
+      <% if receipe.prep_time.present? %><span>Prep: <%= receipe.prep_time %> min</span><% end %>
+      <% if receipe.cook_time.present? %><span>Cook: <%= receipe.cook_time %> min</span><% end %>
+      <% if total_time(receipe) %><span>Total: <%= total_time(receipe) %> min</span><% end %>
+      <% if receipe.ratings.present? %><span>Rating: <%= receipe.ratings %>/5</span><% end %>
+    </p>
+
+    <ul class="ingredients">
+      <% receipe.lists.each do |list| %>
+        <li>
+          <span class="quantity"><%= format_quantity(list.measure, list.ingredient.measure_type) %></span>
+          <%= ingredient_display_name(list.measure, list.ingredient.measure_type, list.ingredient.name) %><% if list.direction.present? %>, <%= list.direction.strip %><% end %>
+        </li>
+      <% end %>
+    </ul>
+  </li>

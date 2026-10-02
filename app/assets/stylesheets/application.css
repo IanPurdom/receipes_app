@@ -311,3 +311,7 @@ h1 {
 .ingredient-autocomplete.excluded .tag-note {
   color: #a1554c;
 }
+
+.suggestions-title {
+  margin: 1.5rem 0 1rem;
+}
