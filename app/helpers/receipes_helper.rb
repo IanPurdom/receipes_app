@@ -6,11 +6,20 @@ module ReceipesHelper
   #   format_quantity(0.667, "cup") => "0.67 cup"
   #   format_quantity(2, nil)      => "2"
   #   format_quantity(nil, "cup")  => "cup"
+  #   format_quantity(2, "cup")    => "2 cups"
   def format_quantity(measure, measure_type)
     parts = []
     parts << format_measure(measure) if measure.present?
-    parts << measure_type if measure_type.present?
+    parts << (plural_measure?(measure) ? measure_type.pluralize : measure_type) if measure_type.present?
     parts.join(" ")
+  end
+
+  # The unit carries the plural when there is one ("2 cups flour"); otherwise
+  # the name does ("3 eggs").
+  def ingredient_display_name(measure, measure_type, name)
+    return name if measure_type.present? || !plural_measure?(measure)
+
+    name.pluralize
   end
 
   # Total time (prep + cook) of a receipe, in minutes, or nil if neither
@@ -39,6 +48,10 @@ module ReceipesHelper
   end
 
   private
+
+  def plural_measure?(measure)
+    measure.present? && measure.to_f > 1
+  end
 
   # Avoids displaying unnecessary decimals (1.000 -> "1", 0.667 -> "0.67").
   def format_measure(measure)

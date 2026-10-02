@@ -7,8 +7,11 @@ API.
 
 ## Features
 
-- **Search by ingredients** (comma-separated), matching either **all** of
-  them or **any** of them, case-insensitive.
+- **Search by ingredients**, matching either **all** of them or **any** of
+  them, case-insensitive.
+- **Ingredient autocomplete**: type an ingredient, pick a suggestion and it is
+  added as a removable tag below the search bar (Backspace on an empty field
+  removes the last tag).
 - **Filter by max total time** (prep + cook time combined, in minutes).
 - **Filter by min rating** (0 to 5).
 - All filters can be combined, and each one is optional (at least one must be
@@ -94,7 +97,7 @@ refuses to run in production.
 
 Visit `/receipes` and fill in any combination of:
 
-- **Ingredients** (comma-separated, e.g. `Tomato, Garlic, Basil`)
+- **Ingredients**: type and pick suggestions one by one; each becomes a tag
 - **Match mode**: contains *all* the ingredients (default) or *at least one*
 - **Max total time**: prep + cook time, in minutes
 - **Min rating**: from 0 to 5

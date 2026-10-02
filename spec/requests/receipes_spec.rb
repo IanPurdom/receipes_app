@@ -15,6 +15,60 @@ RSpec.describe "Receipes", type: :request do
     create(:list, receipe: receipe_with_tomato_only, ingredient: tomato, measure: 1)
   end
 
+  describe "GET /ingredients/suggestions" do
+    it "returns case-insensitive prefix matches as JSON" do
+      get "/ingredients/suggestions", params: { q: "gar" }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body).to eq([{ "name" => "Garlic", "note" => "Mix well" }])
+    end
+
+    it "returns distinct names in alphabetical order with a limit" do
+      12.times { |index| create(:ingredient, name: "Tomato #{index.to_s.rjust(2, '0')}") }
+
+      get "/ingredients/suggestions", params: { q: "tom" }
+
+      names = response.parsed_body.map { |suggestion| suggestion["name"] }
+      expect(names.size).to eq(10)
+      expect(names).to eq(names.sort_by(&:downcase))
+      expect(names.uniq).to eq(names)
+    end
+
+    it "returns the most frequent note used with the ingredient" do
+      water = create(:ingredient, name: "Water")
+      3.times { create(:list, ingredient: water, direction: "as needed") }
+      create(:list, ingredient: water, direction: "cold")
+
+      get "/ingredients/suggestions", params: { q: "wat" }
+
+      expect(response.parsed_body).to eq([{ "name" => "Water", "note" => "as needed" }])
+    end
+
+    it "returns no note when most lines have none" do
+      salt = create(:ingredient, name: "Salt")
+      3.times { create(:list, ingredient: salt, direction: nil) }
+      create(:list, ingredient: salt, direction: "to taste")
+
+      get "/ingredients/suggestions", params: { q: "sal" }
+
+      expect(response.parsed_body).to eq([{ "name" => "Salt", "note" => nil }])
+    end
+
+    it "does not treat SQL LIKE wildcards in the query as wildcards" do
+      create(:ingredient, name: "Wild%card sauce")
+
+      get "/ingredients/suggestions", params: { q: "wild%" }
+
+      expect(response.parsed_body.map { |s| s["name"] }).to eq(["Wild%card sauce"])
+    end
+
+    it "returns no results for a query shorter than two characters" do
+      get "/ingredients/suggestions", params: { q: "t" }
+
+      expect(response.parsed_body).to eq([])
+    end
+  end
+
   describe "GET /receipes (JSON API)" do
     context "when ingredients[] is missing" do
       it "returns a 422 with an error message" do
@@ -157,12 +211,21 @@ RSpec.describe "Receipes", type: :request do
       get "/receipes"
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("Search receipes by ingredients")
+      expect(response.body).to include("What would you like to cook today?")
       expect(response.body).to include("Enter one or more ingredients")
     end
 
-    it "renders the matching receipes when ingredients are given (comma-separated)" do
-      get "/receipes", params: { ingredients: "Tomato, Garlic" }
+    it "renders each selected ingredient as a removable tag with a hidden field" do
+      get "/receipes", params: { ingredients: %w[Tomato Garlic] }
+
+      expect(response.body.scan(/<li class="tag">/).size).to eq(2)
+      expect(response.body).to include('name="ingredients[]" value="Tomato"')
+      expect(response.body).to include('name="ingredients[]" value="Garlic"')
+      expect(response.body).to include('aria-label="Remove Tomato"')
+    end
+
+    it "renders the matching receipes when ingredients are given" do
+      get "/receipes", params: { ingredients: %w[Tomato Garlic] }
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include(receipe_with_both.title)
@@ -170,7 +233,7 @@ RSpec.describe "Receipes", type: :request do
     end
 
     it "displays the quantity and unit for each ingredient" do
-      get "/receipes", params: { ingredients: "Tomato, Garlic" }
+      get "/receipes", params: { ingredients: %w[Tomato Garlic] }
 
       expect(response.body).to include("2 cup")
       expect(response.body).to include("diced")
@@ -216,9 +279,60 @@ RSpec.describe "Receipes", type: :request do
     end
 
     it "displays the combined total time of each receipe" do
-      get "/receipes", params: { ingredients: "Tomato, Garlic" }
+      get "/receipes", params: { ingredients: %w[Tomato Garlic] }
 
       expect(response.body).to include("Total: 30 min")
+    end
+
+    describe "pagination" do
+      before do
+        garlic = create(:ingredient, name: "Paprika")
+        create_list(:receipe, 25).each { |receipe| create(:list, receipe: receipe, ingredient: garlic) }
+      end
+
+      it "shows the first 20 receipes and a link to the next page" do
+        get "/receipes", params: { ingredients: ["Paprika"] }
+
+        expect(response.body.scan('class="receipe-card"').size).to eq(20)
+        expect(response.body).to include("25 receipes found")
+        expect(response.body).to include("Page 1 / 2")
+        expect(response.body).to include("page=2")
+      end
+
+      it "shows the remaining receipes on the last page" do
+        get "/receipes", params: { ingredients: ["Paprika"], page: 2 }
+
+        expect(response.body.scan('class="receipe-card"').size).to eq(5)
+        expect(response.body).to include("Previous")
+        expect(response.body).not_to include("Next")
+      end
+
+      it "clamps an out-of-range page" do
+        get "/receipes", params: { ingredients: ["Paprika"], page: 99 }
+
+        expect(response.body).to include("Page 2 / 2")
+      end
+
+      it "honours the per_page parameter and keeps it in the links" do
+        get "/receipes", params: { ingredients: ["Paprika"], per_page: 10 }
+
+        expect(response.body.scan('class="receipe-card"').size).to eq(10)
+        expect(response.body).to include("Page 1 / 3")
+        expect(response.body).to include("per_page=10")
+        expect(response.body).to match(/<option selected="selected" value="10">10<\/option>/)
+      end
+
+      it "falls back to 20 for an unsupported per_page" do
+        get "/receipes", params: { ingredients: ["Paprika"], per_page: 7 }
+
+        expect(response.body.scan('class="receipe-card"').size).to eq(20)
+      end
+
+      it "does not paginate the JSON API" do
+        get "/receipes", params: { ingredients: ["Paprika"] }, as: :json
+
+        expect(response.parsed_body.size).to eq(25)
+      end
     end
   end
 end

@@ -1,8 +1,8 @@
 puts "Cleaning database..."
 
-List.destroy_all
-Receipe.destroy_all
-Ingredient.destroy_all
+ActiveRecord::Base.connection.execute(
+  "TRUNCATE TABLE lists, receipes, ingredients RESTART IDENTITY"
+)
 
 puts "Database cleaned !"
 

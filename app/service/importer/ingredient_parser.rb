@@ -89,6 +89,10 @@ module Importer
     UNIT_PATTERN = /\A(?<unit>#{UNITS.keys.sort_by { |unit| -unit.length }.map { |unit| Regexp.escape(unit) }.join("|")})(?=\s|$)/i
     PARENTHETICAL_SIZE_PATTERN = /\(\s*\d+(?:\.\d+)?\s*-?\s*(?:fluid\s+ounces?|fl\.?\s*oz\.?|ounces?|oz\.?)\s*\)/i
 
+    DIRECTION_PHRASES = "as needed|to taste|for garnish|for serving|divided|optional|(?:lightly |well )?beaten(?: with)?"
+    TRAILING_DIRECTION_PATTERN = /[\s,]*(?:\(\s*(?:or\s+)?(?:#{DIRECTION_PHRASES})\s*\)|(?:or\s+)?(?:#{DIRECTION_PHRASES}))\s*\z/i
+    LEADING_DIRECTION_PATTERN = /\A(?:#{DIRECTION_PHRASES})\s+/i
+
     attr_reader :direction, :measure, :measure_type, :name
 
     def initialize(ingredient_description)
@@ -96,12 +100,33 @@ module Importer
       @direction = direction&.strip.presence
       @remaining = description.to_s.strip
 
+      extract_inline_direction
       extract_measure
       extract_measure_type
+      extract_leading_direction
       extract_name
     end
 
     private
+
+    # Handles lines where the note is not separated by a comma ("water as needed").
+    def extract_inline_direction
+      while (note = @remaining[TRAILING_DIRECTION_PATTERN])
+        @remaining = @remaining.delete_suffix(note).strip
+        add_direction(note.gsub(/\A[\s,]+|[\s,]+\z/, "").delete_prefix("(").delete_suffix(")").strip)
+      end
+    end
+
+    def extract_leading_direction
+      return unless (note = @remaining[LEADING_DIRECTION_PATTERN])
+
+      @remaining = @remaining.delete_prefix(note).lstrip
+      add_direction(note.strip)
+    end
+
+    def add_direction(note)
+      @direction = [note, @direction].compact.join(", ")
+    end
 
     def extract_measure
       quantity = @remaining.match(QUANTITY_PATTERN)&.[](:quantity)

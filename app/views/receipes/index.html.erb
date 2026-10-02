@@ -1,14 +1,54 @@
-<% content_for(:title) { "Search receipes" } %>
+<% content_for(:title) { "What would you like to cook today?" } %>
 
 <main class="container">
-  <h1>Search receipes by ingredients</h1>
+  <h1>What would you like to cook today?</h1>
 
-  <%= form_with url: receipes_path, method: :get, local: true, class: "search-form" do |f| %>
-    <div class="field">
-      <%= f.label :ingredients, "Ingredients (comma-separated)" %>
-      <%= f.text_field :ingredients,
-            value: @ingredient_names.join(", "),
-            placeholder: "e.g.: Tomato, Garlic, Basil" %>
+  <%= form_with url: receipes_path, method: :get, local: true, class: "search-form",
+         data: {
+           controller: "ingredient-autocomplete",
+           ingredient_autocomplete_url_value: ingredient_suggestions_path,
+           action: "change->ingredient-autocomplete#submitOnChange"
+         } do |f| %>
+    <div class="field ingredient-autocomplete">
+      <label for="ingredient-search">Ingredients</label>
+      <div class="ingredient-input">
+        <%= tag.input type: "text",
+              id: "ingredient-search",
+              placeholder: "Type an ingredient, e.g.: Tomato",
+              autocomplete: "off",
+              role: "combobox",
+              aria: {
+                autocomplete: "list",
+                controls: "ingredient-suggestions",
+                expanded: "false"
+              },
+              data: {
+                ingredient_autocomplete_target: "input",
+                action: "input->ingredient-autocomplete#search keydown->ingredient-autocomplete#navigate"
+              } %>
+        <ul id="ingredient-suggestions"
+            class="ingredient-suggestions"
+            role="listbox"
+            aria-label="Ingredient suggestions"
+            data-ingredient-autocomplete-target="suggestions"
+            hidden></ul>
+      </div>
+      <ul class="ingredient-tags" aria-label="Selected ingredients" data-ingredient-autocomplete-target="tags">
+        <% @ingredient_names.each do |name| %>
+          <li class="tag">
+            <span><%= name %></span>
+            <% if (note = @ingredient_notes[name.downcase]) %><span class="tag-note">(<%= note %>)</span><% end %>
+            <%= hidden_field_tag "ingredients[]", name, id: nil %>
+            <button type="button"
+                    class="tag-remove"
+                    aria-label="Remove <%= name %>"
+                    data-action="click->ingredient-autocomplete#removeTag">&times;</button>
+          </li>
+        <% end %>
+      </ul>
+      <p class="visually-hidden"
+         aria-live="polite"
+         data-ingredient-autocomplete-target="status"></p>
     </div>
 
     <fieldset class="field">
@@ -35,7 +75,10 @@
       <%= f.number_field :min_rating, value: @min_rating, min: 0, max: 5, step: 0.1, placeholder: "e.g.: 4" %>
     </div>
 
-    <%= f.submit "Search" %>
+    <div class="field">
+      <%= f.label :per_page, "Receipes per page" %>
+      <%= f.select :per_page, ReceipesController::PER_PAGE_OPTIONS, selected: @per_page %>
+    </div>
   <% end %>
 
   <section class="results">
@@ -47,7 +90,7 @@
       </p>
     <% else %>
       <p class="result-count">
-        <%= pluralize(@receipes.size, "receipe") %> found
+        <%= pluralize(@total_count, "receipe") %> found<% if @total_pages > 1 %> (page <%= @page %> of <%= @total_pages %>)<% end %>
       </p>
 
       <ul class="receipe-list">
@@ -78,13 +121,25 @@
               <% receipe.lists.each do |list| %>
                 <li>
                   <span class="quantity"><%= format_quantity(list.measure, list.ingredient.measure_type) %></span>
-                  <%= list.ingredient.name %><% if list.direction.present? %>, <%= list.direction.strip %><% end %>
+                  <%= ingredient_display_name(list.measure, list.ingredient.measure_type, list.ingredient.name) %><% if list.direction.present? %>, <%= list.direction.strip %><% end %>
                 </li>
               <% end %>
             </ul>
           </li>
         <% end %>
       </ul>
+
+      <% if @total_pages > 1 %>
+        <nav class="pagination" aria-label="Pagination">
+          <% if @page > 1 %>
+            <%= link_to "← Previous", receipes_path(request.query_parameters.merge(page: @page - 1)), rel: "prev" %>
+          <% end %>
+          <span>Page <%= @page %> / <%= @total_pages %></span>
+          <% if @page < @total_pages %>
+            <%= link_to "Next →", receipes_path(request.query_parameters.merge(page: @page + 1)), rel: "next" %>
+          <% end %>
+        </nav>
+      <% end %>
     <% end %>
   </section>
 </main>

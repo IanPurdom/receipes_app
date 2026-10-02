@@ -12,5 +12,6 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   root "receipes#index"
 
+  get "ingredients/suggestions", to: "ingredients#suggestions", as: :ingredient_suggestions
   resources :receipes, only: [:index]
 end
