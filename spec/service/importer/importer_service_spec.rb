@@ -52,6 +52,18 @@ RSpec.describe Importer::ImporterService do
       expect { described_class.new([ cornbread, pancakes ]).import }.to change(::Ingredient, :count).by(3)
     end
 
+    it "reuses ingredients across database insert batches" do
+      receipes = Array.new(Importer::ImporterService::BATCH_SIZE + 1) do |index|
+        cornbread.merge("title" => "Recipe #{index}", "ingredients" => [ "1 cup shared flour" ])
+      end
+
+      expect { described_class.new(receipes).import }.to change(::Receipe, :count).by(receipes.size)
+        .and change(::Ingredient, :count).by(1)
+        .and change(::List, :count).by(receipes.size)
+
+      expect(::Ingredient.find_by!(name: "shared flour").lists.count).to eq(receipes.size)
+    end
+
     it "stores the measure and direction of each list" do
       described_class.new([ pancakes ]).import
 
@@ -95,9 +107,10 @@ RSpec.describe Importer::ImporterService do
       let!(:shared_list) { create(:list, receipe: shared_receipe, ingredient: shared_ingredient) }
 
       before do
-        allow_any_instance_of(Importer::List).to receive(:create).and_wrap_original do |original|
-          list = original.receiver
-          list.receipe.title == "Cornbread" && list.ingredient.name == "flour" ? false : original.call
+        allow_any_instance_of(Importer::List).to receive(:build).and_wrap_original do |original|
+          list = original.call
+          list.ingredient = nil if list.receipe.title == "Cornbread" && list.ingredient.name == "flour"
+          list
         end
       end
 

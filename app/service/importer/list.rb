@@ -8,12 +8,18 @@ module Importer
       @ingredient_list = ingredient_list
     end
 
-    def create
+    def build
       parsed = IngredientParser.new(ingredient_list)
-      list = ::List.new(receipe: receipe,
-                        ingredient: ingredient,
-                        measure: parsed.measure || 0,
-                        direction: parsed.direction)
+      ::List.new(
+        receipe: receipe,
+        ingredient: ingredient,
+        measure: parsed.measure || 0,
+        direction: parsed.direction
+      )
+    end
+
+    def create
+      list = build
 
       if list.save
         true

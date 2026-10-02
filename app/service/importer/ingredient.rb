@@ -7,16 +7,21 @@ module Importer
       @receipe = receipe
     end
 
-    def create
+    def build
       parsed = IngredientParser.new(ingredient_list)
-      ingredient = ::Ingredient.find_or_initialize_by(name: parsed.name) do |record|
-        record.measure_type = parsed.measure_type
+      ::Ingredient.new(name: parsed.name, measure_type: parsed.measure_type)
+    end
+
+    def create
+      attributes = build
+      ingredient = ::Ingredient.find_or_initialize_by(name: attributes.name) do |record|
+        record.measure_type = attributes.measure_type
       end
 
       if ingredient.save
         ingredient
       else
-        Rails.logger.warn "Could not import ingredient #{parsed.name.inspect}: #{ingredient.errors.full_messages.join(', ')}"
+        Rails.logger.warn "Could not import ingredient #{attributes.name.inspect}: #{ingredient.errors.full_messages.join(', ')}"
         false
       end
     end

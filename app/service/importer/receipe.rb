@@ -6,15 +6,21 @@ module Importer
       @receipe_list = receipe_list
     end
 
+    def build
+      ::Receipe.new(
+        title: receipe_list["title"],
+        cook_time: receipe_list["cook_time"],
+        prep_time: receipe_list["prep_time"],
+        ratings: receipe_list["ratings"],
+        cuisine: receipe_list["cuisine"],
+        category: receipe_list["category"],
+        author: receipe_list["author"],
+        image: receipe_list["image"]
+      )
+    end
+
     def create
-      receipe = ::Receipe.new(title: receipe_list["title"],
-                            cook_time: receipe_list["cook_time"],
-                            prep_time: receipe_list["prep_time"],
-                            ratings: receipe_list["ratings"],
-                            cuisine: receipe_list["cuisine"],
-                            category: receipe_list["category"],
-                             author: receipe_list["author"],
-                            image: receipe_list["image"])
+      receipe = build
 
       if receipe.save
         receipe

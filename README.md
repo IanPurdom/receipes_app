@@ -74,6 +74,20 @@ The app uses RSpec. Run the full suite with:
 bundle exec rspec
 ```
 
+## Comparing importer performance
+
+To compare the record-by-record importer with the batched importer, run:
+
+```bash
+bin/rails importer:benchmark
+```
+
+The benchmark uses the first 500 recipes in `receipes.json` by default and
+rolls back both runs, so it does not leave imported rows in the database.
+Set `LIMIT=10013` to benchmark the complete dataset, or set `DATA=/path/to/file.json`
+to use another JSON dataset. Run it only in development or test; the task
+refuses to run in production.
+
 ## Usage
 
 ### HTML search page
