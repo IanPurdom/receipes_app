@@ -11,14 +11,14 @@ RSpec.describe Importer::ImporterService do
       "category" => "Bread",
       "author" => "bluegirl",
       "image" => "https://example.com/cornbread.jpg",
-      "ingredients" => ["1 cup flour", "1 ½ cups milk", "2 eggs"]
+      "ingredients" => [ "1 cup flour", "1 ½ cups milk", "2 eggs" ]
     }
   end
 
   let(:pancakes) do
     cornbread.merge(
       "title" => "Pancakes",
-      "ingredients" => ["2 cups flour", "1 cup milk, warmed"]
+      "ingredients" => [ "2 cups flour", "1 cup milk, warmed" ]
     )
   end
 
@@ -29,31 +29,31 @@ RSpec.describe Importer::ImporterService do
 
   describe "#import" do
     it "creates the receipes" do
-      expect { described_class.new([cornbread, pancakes]).import }.to change(::Receipe, :count).by(2)
+      expect { described_class.new([ cornbread, pancakes ]).import }.to change(::Receipe, :count).by(2)
 
       expect(::Receipe.pluck(:title)).to contain_exactly("Cornbread", "Pancakes")
     end
 
     it "creates one list per ingredient of each receipe" do
-      expect { described_class.new([cornbread, pancakes]).import }.to change(::List, :count).by(5)
+      expect { described_class.new([ cornbread, pancakes ]).import }.to change(::List, :count).by(5)
 
       expect(::Receipe.find_by(title: "Cornbread").lists.count).to eq(3)
       expect(::Receipe.find_by(title: "Pancakes").lists.count).to eq(2)
     end
 
     it "links each receipe to its ingredients" do
-      described_class.new([cornbread]).import
+      described_class.new([ cornbread ]).import
 
       expect(::Receipe.find_by(title: "Cornbread").ingredients.pluck(:name))
         .to contain_exactly("flour", "milk", "egg")
     end
 
     it "shares ingredients between receipes" do
-      expect { described_class.new([cornbread, pancakes]).import }.to change(::Ingredient, :count).by(3)
+      expect { described_class.new([ cornbread, pancakes ]).import }.to change(::Ingredient, :count).by(3)
     end
 
     it "stores the measure and direction of each list" do
-      described_class.new([pancakes]).import
+      described_class.new([ pancakes ]).import
 
       milk_list = ::List.joins(:ingredient).find_by(ingredients: { name: "milk" })
 
@@ -62,47 +62,72 @@ RSpec.describe Importer::ImporterService do
     end
 
     it "does nothing with an empty list" do
-      expect { described_class.new([]).import }.not_to change { [::Receipe.count, ::Ingredient.count, ::List.count] }
+      expect { described_class.new([]).import }.not_to change { [ ::Receipe.count, ::Ingredient.count, ::List.count ] }
     end
 
     it "does not import ingredients of a receipe that could not be saved" do
       invalid = cornbread.merge("title" => nil)
 
-      expect { described_class.new([invalid]).import }
-        .not_to change { [::Receipe.count, ::Ingredient.count, ::List.count] }
+      expect { described_class.new([ invalid ]).import }
+        .not_to change { [ ::Receipe.count, ::Ingredient.count, ::List.count ] }
     end
 
     it "keeps importing the following receipes after an invalid one" do
       invalid = cornbread.merge("title" => nil)
 
-      expect { described_class.new([invalid, pancakes]).import }.to change(::Receipe, :count).by(1)
+      expect { described_class.new([ invalid, pancakes ]).import }.to change(::Receipe, :count).by(1)
 
-      expect(::Receipe.pluck(:title)).to eq(["Pancakes"])
+      expect(::Receipe.pluck(:title)).to eq([ "Pancakes" ])
     end
 
     it "skips the ingredients that could not be saved without failing the import" do
-      receipe = cornbread.merge("ingredients" => ["2 cups", "1 cup flour"])
+      receipe = cornbread.merge("ingredients" => [ "2 cups", "1 cup flour" ])
 
-      expect { described_class.new([receipe]).import }.to change(::List, :count).by(1)
+      expect { described_class.new([ receipe ]).import }.to change(::List, :count).by(1)
 
-      expect(::Receipe.find_by(title: "Cornbread").ingredients.pluck(:name)).to eq(["flour"])
+      expect(::Receipe.find_by(title: "Cornbread").ingredients.pluck(:name)).to eq([ "flour" ])
     end
 
     context "when a list cannot be saved" do
-      let(:single_ingredient) { cornbread.merge("ingredients" => ["1 cup flour"]) }
+      let(:single_ingredient) { cornbread.merge("ingredients" => [ "1 cup cornstarch", "1 cup flour" ]) }
+      let!(:shared_receipe) { create(:receipe, title: "Shared recipe") }
+      let!(:shared_ingredient) { create(:ingredient, name: "flour") }
+      let!(:shared_list) { create(:list, receipe: shared_receipe, ingredient: shared_ingredient) }
 
       before do
-        allow_any_instance_of(Importer::List).to receive(:create).and_return(false)
+        allow_any_instance_of(Importer::List).to receive(:create).and_wrap_original do |original|
+          list = original.receiver
+          list.receipe.title == "Cornbread" && list.ingredient.name == "flour" ? false : original.call
+        end
       end
 
       it "deletes the temporary receipe" do
-        described_class.new([single_ingredient]).import
+        expect { described_class.new([ single_ingredient ]).import }.not_to change(::Receipe, :count)
 
-        expect(::Receipe.count).to eq(0)
+        expect(::Receipe.exists?(title: "Cornbread")).to be(false)
       end
 
       it "does not leave any list behind" do
-        expect { described_class.new([single_ingredient]).import }.not_to change(::List, :count)
+        expect { described_class.new([ single_ingredient ]).import }.not_to change(::List, :count)
+      end
+
+      it "rolls back ingredients created for the failed receipe" do
+        expect { described_class.new([ single_ingredient ]).import }.not_to change(::Ingredient, :count)
+      end
+
+      it "preserves shared ingredients and their existing lists" do
+        described_class.new([ single_ingredient ]).import
+
+        expect(shared_ingredient.reload).to be_persisted
+        expect(shared_list.reload).to be_persisted
+      end
+
+      it "continues with the next receipe after rolling back a failed one" do
+        expect do
+          described_class.new([ single_ingredient, pancakes ]).import
+        end.to change(::Receipe, :count).by(1)
+
+        expect(::Receipe.pluck(:title)).to contain_exactly("Shared recipe", "Pancakes")
       end
     end
   end

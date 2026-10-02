@@ -25,14 +25,22 @@ RSpec.describe Importer::List do
       {
         "1 cup flour" => 1,
         "2 cups flour" => 2,
+        "10 cups flour" => 10,
+        "12 cups flour" => 12,
+        "3 to 4 cups flour" => 3,
+        "8-10 popsicle sticks" => 8,
+        "3 to 4 capsules vitamin E oil" => 3,
         "½ cup flour" => 0.5,
         "¾ cup flour" => 0.75,
         "¼ cup flour" => 0.25,
         "⅓ cup flour" => (1 / 3r),
         "⅔ cup flour" => (2 / 3r),
         "⅛ cup flour" => 0.125,
+        "⅝ cup flour" => 0.625,
         "1 ½ cups flour" => 1.5,
-        "3 ½ teaspoons flour" => 3.5
+        "3 ½ teaspoons flour" => 3.5,
+        "1 1/2 cups flour" => 1.5,
+        "3 (12 ounce) packages refrigerated biscuit dough" => 3
       }.each do |ingredient_list, expected|
         it "computes #{expected.inspect} for #{ingredient_list.inspect}" do
           build_importer(ingredient_list).create
@@ -61,10 +69,10 @@ RSpec.describe Importer::List do
         expect(::List.last.direction).to be_nil
       end
 
-      it "is nil when there are several commas" do
+      it "keeps the rest of the direction when there are several commas" do
         build_importer("1 cup flour, sifted, packed").create
 
-        expect(::List.last.direction).to be_nil
+        expect(::List.last.direction).to eq("sifted, packed")
       end
     end
 

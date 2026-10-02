@@ -31,6 +31,18 @@ RSpec.describe Importer::Ingredient do
       expect(ingredient.name).to eq("margarine")
     end
 
+    it "preserves punctuation that belongs to the ingredient name" do
+      ingredient = build_importer("1 cup all-purpose flour").create
+
+      expect(ingredient.name).to eq("all-purpose flour")
+    end
+
+    it "removes package-size details from the ingredient name" do
+      ingredient = build_importer("3 (12 ounce) packages refrigerated biscuit dough").create
+
+      expect(ingredient.name).to eq("refrigerated biscuit dough")
+    end
+
     it "singularizes the name" do
       ingredient = build_importer("3 eggs").create
 
@@ -41,6 +53,12 @@ RSpec.describe Importer::Ingredient do
       ingredient = build_importer("1 cup butter, melted").create
 
       expect(ingredient.name).to eq("butter")
+    end
+
+    it "preserves hyphens and apostrophes in ingredient names" do
+      ingredient = build_importer("1 teaspoon baker's chocolate").create
+
+      expect(ingredient.name).to eq("baker's chocolate")
     end
 
     it "ignores the measure type case" do
@@ -59,6 +77,32 @@ RSpec.describe Importer::Ingredient do
       ingredient = build_importer("2 teaspoons salt").create
 
       expect(ingredient.measure_type).to eq("teaspoon")
+    end
+
+    it "extracts a package measure after parenthetical package size" do
+      ingredient = build_importer("3 (12 ounce) packages refrigerated biscuit dough").create
+
+      expect(ingredient.measure_type).to eq("package")
+    end
+
+    it "extracts a package unit expressed as either a can or bottle" do
+      ingredient = build_importer("1 (12 fluid ounce) can or bottle beer").create
+
+      expect(ingredient.measure_type).to eq("can")
+    end
+
+    it "removes abbreviated fluid-ounce package sizes" do
+      ingredient = build_importer("1 (16 fl oz) bottle salad dressing").create
+
+      expect(ingredient.name).to eq("salad dressing")
+      expect(ingredient.measure_type).to eq("bottle")
+    end
+
+    it "extracts the amount and unit from a quantity range" do
+      ingredient = build_importer("3 to 4 capsules vitamin E oil").create
+
+      expect(ingredient.name).to eq("vitamin E oil")
+      expect(ingredient.measure_type).to eq("capsule")
     end
 
     it "leaves the measure type empty when there is none" do
